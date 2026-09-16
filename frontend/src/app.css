@@ -1,0 +1,165 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400&display=swap');
+
+:root {
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-serif: 'Playfair Display', Georgia, serif;
+
+  /* Warm veterinary & commemorative palette */
+  --bg-main: #fbf9f5;
+  --bg-card: #ffffff;
+  --bg-card-subtle: #f5f0e8;
+  
+  --primary: #2d5a4c;       /* Forest / sage green */
+  --primary-light: #447967;
+  --primary-subtle: #eaf2ed;
+  --accent: #d97746;        /* Warm terracotta */
+  --accent-light: #faece5;
+  --gold: #d4a34b;          /* Commemorative golden highlight */
+  
+  --text-main: #242928;
+  --text-muted: #5e6865;
+  --text-subtle: #899491;
+
+  --border-subtle: #e5ded4;
+  --border-focus: #2d5a4c;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 2px 8px rgba(36, 41, 40, 0.04);
+  --shadow-md: 0 8px 24px rgba(36, 41, 40, 0.07);
+  --shadow-lg: 0 16px 40px rgba(36, 41, 40, 0.11);
+  --shadow-hover: 0 20px 35px rgba(36, 41, 40, 0.14);
+
+  --transition-fast: 0.18s ease;
+  --transition-normal: 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  min-height: 100%;
+  font-family: var(--font-sans);
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .font-serif {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button, input, textarea, select {
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+/* Base button styles */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.4rem;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(45, 90, 76, 0.28);
+}
+.btn-primary:hover {
+  background-color: var(--primary-light);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(45, 90, 76, 0.36);
+}
+
+.btn-secondary {
+  background-color: #ffffff;
+  color: var(--text-main);
+  border: 1px solid var(--border-subtle);
+}
+.btn-secondary:hover {
+  background-color: var(--bg-card-subtle);
+  transform: translateY(-1px);
+}
+
+.btn-accent {
+  background-color: var(--accent);
+  color: #ffffff;
+}
+.btn-accent:hover {
+  background-color: #c46637;
+  transform: translateY(-2px);
+}
+
+/* Species tag styles */
+.badge-species {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.badge-chien {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+.badge-chat {
+  background-color: #ede9fe;
+  color: #5b21b6;
+}
+.badge-nac {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+.badge-cheval {
+  background-color: #ecfdf5;
+  color: #065f46;
+}
+.badge-autre {
+  background-color: #f1f5f9;
+  color: #475569;
+}
+
+/* Print Specific Rules */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .page-break {
+    page-break-after: always;
+    break-after: page;
+  }
+}

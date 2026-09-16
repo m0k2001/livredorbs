@@ -1,0 +1,29 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: livredor_backend_dev
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - DATA_DIR=/app/data
+      - UPLOAD_DIR=/app/uploads
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: livredor_frontend_dev
+    restart: unless-stopped
+    ports:
+      - "80:80" # Consultation & Diaporama & Admin secret (http://localhost)
+      - "8081:81" # Espace Dépôt Témoignages Client (http://localhost:8081)
+    depends_on:
+      - backend

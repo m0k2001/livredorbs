@@ -1,0 +1,37 @@
+services:
+  backend:
+    image: m0k2001/livredorbs-backend:latest
+    container_name: livredor_backend
+    restart: unless-stopped
+    ports:
+      - "9003:8000"
+    env_file:
+      - .env
+    environment:
+      - DATA_DIR=/app/data
+      - UPLOAD_DIR=/app/uploads
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+    networks:
+      - synology_net
+
+  frontend:
+    image: m0k2001/livredorbs-frontend:latest
+    container_name: livredor_frontend
+    restart: unless-stopped
+    ports:
+      - "9083:80" # Consultation & Diaporama & Admin secret
+      - "9084:81" # Espace Dépôt Témoignages Client
+    depends_on:
+      - backend
+    networks:
+      - synology_net
+
+networks:
+  synology_net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.53.0/24
