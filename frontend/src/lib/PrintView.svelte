@@ -93,9 +93,9 @@
         <h2 class="cover-subtitle">Béatrice</h2>
         <div class="cover-divider"></div>
         <p class="cover-text">
-          Témoignages, anecdotes et tendres pensées de vos clients et de leurs
+          Témoignages, anecdotes et tendres pensées de tes clients et de leurs
           compagnons.<br />
-          À l'occasion de votre départ en retraite.
+          À l'occasion de ton départ en retraite.
         </p>
         <div class="cover-footer">
           <span>{messages.length} messages d'affection réunis</span>
