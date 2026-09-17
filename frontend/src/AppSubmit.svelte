@@ -134,7 +134,7 @@
       <div class="locked-container">
         <div class="locked-card">
           <div class="lock-icon">🔒</div>
-          <h2>Espace Privé & Commémoratif</h2>
+          <h2>Espace Privé</h2>
           <p class="lock-desc">
             Pour préserver la surprise du départ en retraite du <strong
               >Dr Béatrice Sarda</strong

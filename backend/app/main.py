@@ -20,6 +20,8 @@ from .database import (
     get_all_messages_for_admin,
     get_message_by_id,
     update_message_status,
+    update_message_print_selection,
+    bulk_update_print_selection,
     update_message_content,
     delete_message,
     get_stats
@@ -61,6 +63,13 @@ class AdminLoginRequest(BaseModel):
 class StatusUpdateRequest(BaseModel):
     status: str  # 'approved', 'rejected', 'pending'
 
+class PrintSelectionRequest(BaseModel):
+    include_in_print: bool
+
+class BulkPrintSelectionRequest(BaseModel):
+    include_in_print: bool
+    status: Optional[str] = None
+
 class MessageEditRequest(BaseModel):
     author_name: str
     pet_name: str
@@ -92,10 +101,9 @@ def get_admin_config(authorized: bool = Depends(verify_admin_token)):
     }
 
 @app.get("/api/messages")
-def list_approved_messages(species: Optional[str] = None):
-    """Returns only approved messages for Dr Béatrice's tribute view."""
-    return get_approved_messages(species_filter=species)
-    return get_approved_messages(species_filter=species)
+def list_approved_messages(species: Optional[str] = None, for_print: bool = False):
+    """Returns approved messages (optionally filtered for print book if for_print=True)."""
+    return get_approved_messages(species_filter=species, for_print=for_print)
 
 @app.post("/api/messages/submit")
 async def submit_message(
@@ -274,8 +282,12 @@ def admin_login(body: AdminLoginRequest):
     raise HTTPException(status_code=401, detail="Mot de passe incorrect")
 
 @app.get("/api/admin/messages")
-def admin_list_messages(status: Optional[str] = None, authorized: bool = Depends(verify_admin_token)):
-    messages = get_all_messages_for_admin(status=status)
+def admin_list_messages(
+    status: Optional[str] = None, 
+    print_only: bool = False,
+    authorized: bool = Depends(verify_admin_token)
+):
+    messages = get_all_messages_for_admin(status=status, print_only=print_only)
     stats = get_stats()
     return {
         "stats": stats,
@@ -291,6 +303,25 @@ def admin_update_status(message_id: int, body: StatusUpdateRequest, authorized: 
     if not updated:
         raise HTTPException(status_code=404, detail="Message introuvable")
     return {"success": True, "id": message_id, "status": body.status}
+
+@app.patch("/api/admin/messages/{message_id}/print")
+def admin_update_print_selection(
+    message_id: int, 
+    body: PrintSelectionRequest, 
+    authorized: bool = Depends(verify_admin_token)
+):
+    updated = update_message_print_selection(message_id, body.include_in_print)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Message introuvable")
+    return {"success": True, "id": message_id, "include_in_print": body.include_in_print}
+
+@app.post("/api/admin/messages/print/bulk")
+def admin_bulk_print_selection(
+    body: BulkPrintSelectionRequest, 
+    authorized: bool = Depends(verify_admin_token)
+):
+    count = bulk_update_print_selection(body.include_in_print, body.status)
+    return {"success": True, "count": count, "include_in_print": body.include_in_print}
 
 @app.put("/api/admin/messages/{message_id}")
 def admin_edit_message(message_id: int, body: MessageEditRequest, authorized: bool = Depends(verify_admin_token)):

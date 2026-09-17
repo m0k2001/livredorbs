@@ -8,8 +8,8 @@
   let loginError = null;
 
   let messages = [];
-  let stats = { pending: 0, approved: 0, rejected: 0, total: 0 };
-  let activeTab = "pending"; // 'pending', 'approved', 'rejected', 'all', 'qrcode'
+  let stats = { pending: 0, approved: 0, rejected: 0, total: 0, print_selected: 0 };
+  let activeTab = "pending"; // 'pending', 'approved', 'print_selected', 'rejected', 'all', 'qrcode', 'future'
   let loading = false;
   let actionMessage = null;
 
@@ -97,7 +97,7 @@
       }
       const data = await res.json();
       messages = data.messages || [];
-      stats = data.stats || { pending: 0, approved: 0, rejected: 0, total: 0 };
+      stats = data.stats || { pending: 0, approved: 0, rejected: 0, total: 0, print_selected: 0 };
     } catch (err) {
       console.error(err);
     } finally {
@@ -117,6 +117,58 @@
       });
       if (!res.ok) throw new Error("Erreur de mise à jour");
       actionMessage = `Message mis à jour avec le statut: ${newStatus}`;
+      setTimeout(() => (actionMessage = null), 3000);
+      fetchAdminMessages();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  async function togglePrintSelection(msg) {
+    const newVal = !Boolean(msg.include_in_print ?? 1);
+    // Optimistic local update
+    msg.include_in_print = newVal ? 1 : 0;
+    messages = [...messages];
+    try {
+      const res = await fetch(`/api/admin/messages/${msg.id}/print`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ include_in_print: newVal }),
+      });
+      if (!res.ok) throw new Error("Erreur lors de la modification de la sélection PDF");
+      actionMessage = newVal
+        ? `« ${msg.pet_name} » (${msg.author_name}) a été inclus dans le Livre PDF.`
+        : `« ${msg.pet_name} » (${msg.author_name}) a été retiré du Livre PDF.`;
+      setTimeout(() => (actionMessage = null), 3000);
+      fetchAdminMessages();
+    } catch (err) {
+      alert(err.message);
+      fetchAdminMessages();
+    }
+  }
+
+  async function setBulkPrintSelection(include_in_print) {
+    const label = include_in_print ? "inclure tous les messages approuvés" : "retirer tous les messages";
+    if (!confirm(`Voulez-vous vraiment ${label} du Livre PDF ?`)) return;
+    try {
+      const res = await fetch(`/api/admin/messages/print/bulk`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          include_in_print: include_in_print,
+          status: "approved",
+        }),
+      });
+      if (!res.ok) throw new Error("Erreur lors de la mise à jour globale");
+      actionMessage = include_in_print
+        ? `Tous les messages approuvés ont été inclus dans le Livre PDF.`
+        : `Tous les messages ont été retirés du Livre PDF.`;
       setTimeout(() => (actionMessage = null), 3000);
       fetchAdminMessages();
     } catch (err) {
@@ -178,6 +230,9 @@
 
   $: displayedMessages = messages.filter((m) => {
     if (activeTab === "all") return true;
+    if (activeTab === "print_selected") {
+      return (m.include_in_print ?? 1) === 1 && m.status === "approved";
+    }
     return m.status === activeTab;
   });
 
@@ -267,6 +322,15 @@
       >
         <span>✅ Approuvés</span>
         <span class="tab-badge badge-approved">{stats.approved}</span>
+      </button>
+
+      <button
+        class="tab-btn tab-btn-print"
+        class:active={activeTab === "print_selected"}
+        on:click={() => (activeTab = "print_selected")}
+      >
+        <span>📖 Sélection Livre PDF</span>
+        <span class="tab-badge badge-print">{stats.print_selected ?? stats.approved}</span>
       </button>
 
       <button
@@ -434,11 +498,44 @@
     {:else}
       <!-- Messages List -->
       <div class="admin-list-wrapper no-print">
+        <!-- PDF Book Selection Banner -->
+        <div class="print-selection-banner">
+          <div class="print-banner-info">
+            <span class="banner-icon">📖</span>
+            <div>
+              <div class="banner-title">Sélection pour l'Album Imprimable & PDF HD</div>
+              <div class="banner-subtitle">
+                <strong>{stats.print_selected ?? stats.approved}</strong> message{(stats.print_selected ?? stats.approved) > 1 ? 's' : ''} sélectionné{(stats.print_selected ?? stats.approved) > 1 ? 's' : ''} sur <strong>{stats.approved}</strong> en ligne pour composer le livre souvenir.
+              </div>
+            </div>
+          </div>
+          <div class="print-banner-actions">
+            <button class="btn btn-sm btn-banner-action" on:click={() => setBulkPrintSelection(true)}>
+              ✅ Tout inclure
+            </button>
+            <button class="btn btn-sm btn-banner-action" on:click={() => setBulkPrintSelection(false)}>
+              ❌ Tout désélectionner
+            </button>
+            <button class="btn btn-sm btn-banner-primary" on:click={() => onNavigate("print")}>
+              🖨️ Prévisualiser le PDF
+            </button>
+          </div>
+        </div>
+
         {#if loading}
           <div class="admin-state">Chargement des messages...</div>
         {:else if displayedMessages.length === 0}
           <div class="admin-state empty">
-            <p>Aucun message dans cette section ({activeTab}).</p>
+            <p>
+              {#if activeTab === "print_selected"}
+                Aucun message n'est actuellement sélectionné pour le Livre PDF.<br />
+                <button class="btn btn-sm btn-primary" style="margin-top: 1rem;" on:click={() => (activeTab = "approved")}>
+                  Voir les messages approuvés pour en ajouter
+                </button>
+              {:else}
+                Aucun message dans cette section ({activeTab}).
+              {/if}
+            </p>
           </div>
         {:else}
           <div class="admin-table">
@@ -456,12 +553,33 @@
                       <span class="meta-sub">({msg.years_known})</span>
                     {/if}
                   </div>
-                  <div class="status-pill status-{msg.status}">
-                    {msg.status === "pending"
-                      ? "⏳ En attente"
-                      : msg.status === "approved"
-                        ? "✅ En ligne"
-                        : "🚫 Masqué"}
+
+                  <div class="header-pills">
+                    <!-- PDF Book Inclusion Pill -->
+                    <button
+                      type="button"
+                      class="print-toggle-pill {(msg.include_in_print ?? 1) === 1 ? 'included' : 'excluded'}"
+                      on:click={() => togglePrintSelection(msg)}
+                      title={(msg.include_in_print ?? 1) === 1 ? "Cliquer pour retirer du Livre PDF" : "Cliquer pour inclure dans le Livre PDF"}
+                    >
+                      {#if (msg.include_in_print ?? 1) === 1}
+                        <span class="pill-icon">📖</span>
+                        <span class="pill-text">Dans le Livre PDF</span>
+                        <span class="check-mark">✓</span>
+                      {:else}
+                        <span class="pill-icon">📖</span>
+                        <span class="pill-text">Hors Livre PDF</span>
+                        <span class="plus-mark">+</span>
+                      {/if}
+                    </button>
+
+                    <div class="status-pill status-{msg.status}">
+                      {msg.status === "pending"
+                        ? "⏳ En attente"
+                        : msg.status === "approved"
+                          ? "✅ En ligne"
+                          : "🚫 Masqué"}
+                    </div>
                   </div>
                 </div>
 
@@ -524,6 +642,17 @@
                   </div>
 
                   <div class="btn-group-misc">
+                    <button
+                      class="btn-action btn-print-action {(msg.include_in_print ?? 1) === 1 ? 'is-included' : 'is-excluded'}"
+                      on:click={() => togglePrintSelection(msg)}
+                      title={(msg.include_in_print ?? 1) === 1 ? "Retirer de l'album PDF imprimable" : "Ajouter à l'album PDF imprimable"}
+                    >
+                      {#if (msg.include_in_print ?? 1) === 1}
+                        📖 Dans le PDF ✓
+                      {:else}
+                        📖 + Ajouter au PDF
+                      {/if}
+                    </button>
                     <button
                       class="btn-action btn-edit"
                       on:click={() => openEditModal(msg)}
@@ -746,6 +875,149 @@
   .badge-rejected {
     background: #fee2e2;
     color: #991b1b;
+  }
+
+  .badge-print {
+    background: #fef3c7;
+    color: #92400e;
+  }
+  .tab-btn.active .badge-print {
+    background: #ffffff;
+    color: #92400e;
+  }
+
+  /* PDF Selection Banner */
+  .print-selection-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    border: 1px solid #fde68a;
+    border-radius: var(--radius-md);
+    padding: 1rem 1.4rem;
+    margin-bottom: 1.5rem;
+    gap: 1.2rem;
+    flex-wrap: wrap;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .print-banner-info {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+  }
+
+  .banner-icon {
+    font-size: 1.8rem;
+  }
+
+  .banner-title {
+    font-weight: 700;
+    color: #92400e;
+    font-size: 1rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .banner-subtitle {
+    font-size: 0.88rem;
+    color: #78350f;
+  }
+
+  .print-banner-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+
+  .btn-banner-action {
+    background: #ffffff;
+    border: 1px solid #d97706;
+    color: #92400e;
+    font-weight: 600;
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--radius-full);
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn-banner-action:hover {
+    background: #fef3c7;
+  }
+
+  .btn-banner-primary {
+    background: #d97706;
+    border: 1px solid #b45309;
+    color: #ffffff;
+    font-weight: 700;
+    padding: 0.35rem 0.9rem;
+    border-radius: var(--radius-full);
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn-banner-primary:hover {
+    background: #b45309;
+  }
+
+  .header-pills {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+
+  .print-toggle-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border-radius: var(--radius-full);
+    padding: 0.25rem 0.75rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+  }
+
+  .print-toggle-pill.included {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fcd34d;
+  }
+  .print-toggle-pill.included:hover {
+    background: #fde68a;
+  }
+
+  .print-toggle-pill.excluded {
+    background: #f3f4f6;
+    color: #6b7280;
+    border-color: #e5e7eb;
+  }
+  .print-toggle-pill.excluded:hover {
+    background: #e5e7eb;
+    color: #374151;
+  }
+
+  .btn-print-action {
+    border-radius: var(--radius-sm);
+  }
+  .btn-print-action.is-included {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fcd34d;
+  }
+  .btn-print-action.is-included:hover {
+    background: #fde68a;
+  }
+  .btn-print-action.is-excluded {
+    background: #f9fafb;
+    color: #6b7280;
+    border: 1px dashed #d1d5db;
+  }
+  .btn-print-action.is-excluded:hover {
+    background: #f3f4f6;
+    color: #111827;
   }
 
   .admin-table {

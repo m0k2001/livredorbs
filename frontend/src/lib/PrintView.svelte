@@ -10,7 +10,7 @@
   async function fetchApprovedMessages() {
     loading = true;
     try {
-      const res = await fetch("/api/messages");
+      const res = await fetch("/api/messages?for_print=true");
       if (res.ok) {
         messages = await res.json();
       }
@@ -51,8 +51,7 @@
       <div class="toolbar-info">
         <h3>📖 Préparation de l'Album Imprimable</h3>
         <p>
-          Ce document est mis en page pour une impression haute qualité (300
-          DPI) ou pour l'envoyer à un imprimeur.
+          {messages.length} message{messages.length > 1 ? 's sélectionnés' : ' sélectionné'} pour le livre PDF.
         </p>
       </div>
 
@@ -69,12 +68,12 @@
           </select>
         </label>
 
-        <button class="btn btn-primary" on:click={triggerPrint}>
+        <button class="btn btn-primary" on:click={triggerPrint} disabled={messages.length === 0}>
           <span>🖨️</span> Imprimer / Enregistrer en PDF HD
         </button>
 
         <button class="btn btn-secondary" on:click={() => onNavigate("admin")}>
-          <span>⚙️</span> Retour Administration
+          <span>⚙️</span> Gérer la sélection PDF
         </button>
         <button class="btn btn-secondary" on:click={() => onNavigate("home")}>
           <span>📖</span> Voir le Livre d'Or
@@ -108,6 +107,15 @@
     {#if loading}
       <div class="loading-box no-print">
         Préparation des images haute résolution...
+      </div>
+    {:else if messages.length === 0}
+      <div class="empty-album no-print">
+        <span class="empty-icon">📖</span>
+        <h3>Aucun message sélectionné pour le livre PDF</h3>
+        <p>Rendez-vous dans l'espace d'administration pour cocher les témoignages à inclure dans l'album imprimable.</p>
+        <button class="btn btn-primary" on:click={() => onNavigate("admin")}>
+          ⚙️ Accéder à la sélection des messages
+        </button>
       </div>
     {:else}
       <div class="album-content layout-{layoutMode}">
@@ -455,6 +463,31 @@
     text-align: center;
     padding: 4rem;
     color: var(--text-muted);
+  }
+
+  .empty-album {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: #ffffff;
+    border-radius: var(--radius-md);
+    margin: 2rem auto;
+    max-width: 600px;
+    box-shadow: var(--shadow-sm);
+    border: 1px dashed var(--border-subtle);
+  }
+  .empty-album .empty-icon {
+    font-size: 3rem;
+    display: block;
+    margin-bottom: 1rem;
+  }
+  .empty-album h3 {
+    color: var(--primary);
+    margin-bottom: 0.8rem;
+  }
+  .empty-album p {
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
   }
 
   /* Print Styles */
