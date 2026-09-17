@@ -10,31 +10,44 @@
   let currentRoute = 'home';
   let homeComponent = null;
 
-  function parseHash() {
-    const hash = window.location.hash.replace(/^#\/?/, '');
-    
-    if (hash === ADMIN_SECRET_ROUTE) {
+  function parseRoute() {
+    const rawHash = (window.location.hash || '').split('?')[0];
+    const cleanHash = rawHash.replace(/^#+\/?/, '').replace(/\/+$/, '').trim().toLowerCase();
+    const rawPath = (window.location.pathname || '').replace(/^\/+|\/+$/g, '').trim().toLowerCase();
+
+    const target = cleanHash || rawPath;
+
+    if (target === ADMIN_SECRET_ROUTE.toLowerCase() || target === 'admin') {
       currentRoute = 'admin';
-    } else if (hash === 'diaporama' || hash === 'projection' || hash === 'slideshow') {
+    } else if (target === 'diaporama' || target === 'projection' || target === 'slideshow') {
       currentRoute = 'diaporama';
-    } else if (hash === 'imprimer' || hash === 'print') {
+    } else if (target === 'imprimer' || target === 'print') {
       currentRoute = 'print';
     } else {
       currentRoute = 'home';
     }
+
+    // Clean hash from URL if present to maintain clean URLs
+    if (window.location.hash) {
+      const cleanPath = target === 'home' || !target ? '/' : `/${target}`;
+      window.history.replaceState({}, '', cleanPath);
+    }
   }
 
   function navigateTo(route) {
-    if (route === 'home') {
-      window.location.hash = '#/';
-    } else if (route === 'diaporama') {
-      window.location.hash = '#/diaporama';
+    let targetPath = '/';
+    if (route === 'diaporama') {
+      targetPath = '/diaporama';
     } else if (route === 'print') {
-      window.location.hash = '#/imprimer';
+      targetPath = '/imprimer';
     } else if (route === 'admin') {
-      window.location.hash = `#/${ADMIN_SECRET_ROUTE}`;
+      targetPath = `/${ADMIN_SECRET_ROUTE}`;
     }
-    parseHash();
+
+    if (window.location.pathname !== targetPath || window.location.hash) {
+      window.history.pushState({}, '', targetPath);
+    }
+    parseRoute();
   }
 
   function handleStartSlideshow() {
@@ -46,9 +59,13 @@
   }
 
   onMount(() => {
-    parseHash();
-    window.addEventListener('hashchange', parseHash);
-    return () => window.removeEventListener('hashchange', parseHash);
+    parseRoute();
+    window.addEventListener('popstate', parseRoute);
+    window.addEventListener('hashchange', parseRoute);
+    return () => {
+      window.removeEventListener('popstate', parseRoute);
+      window.removeEventListener('hashchange', parseRoute);
+    };
   });
 </script>
 

@@ -5,42 +5,59 @@
   import AdminView from './lib/AdminView.svelte';
   import PrintView from './lib/PrintView.svelte';
 
+  const ADMIN_SECRET_ROUTE = 'admin-k8x7m2q9v3p4z1y';
   let currentRoute = 'home';
   let tokenParam = 'retraitebs-7x8k2q';
 
-  function parseHash() {
-    const hash = window.location.hash.replace(/^#\/?/, '');
-    
-    if (hash.startsWith('participer')) {
-      const parts = hash.split('/');
+  function parseRoute() {
+    const rawHash = (window.location.hash || '').split('?')[0];
+    const cleanHash = rawHash.replace(/^#+\/?/, '').replace(/\/+$/, '').trim().toLowerCase();
+    const rawPath = (window.location.pathname || '').replace(/^\/+|\/+$/g, '').trim().toLowerCase();
+
+    const target = cleanHash || rawPath;
+
+    if (target.startsWith('participer')) {
+      const parts = target.split('/');
       tokenParam = parts[1] || 'retraitebs-7x8k2q';
       currentRoute = 'submit';
-    } else if (hash === 'admin') {
+    } else if (target === ADMIN_SECRET_ROUTE.toLowerCase() || target === 'admin') {
       currentRoute = 'admin';
-    } else if (hash === 'imprimer' || hash === 'print') {
+    } else if (target === 'imprimer' || target === 'print') {
       currentRoute = 'print';
     } else {
       currentRoute = 'home';
     }
+
+    if (window.location.hash) {
+      const cleanPath = target === 'home' || !target ? '/' : `/${target}`;
+      window.history.replaceState({}, '', cleanPath);
+    }
   }
 
   function navigateTo(route, token = 'retraitebs-7x8k2q') {
-    if (route === 'home') {
-      window.location.hash = '#/';
-    } else if (route === 'submit') {
-      window.location.hash = `#/participer/${token}`;
+    let targetPath = '/';
+    if (route === 'submit') {
+      targetPath = `/participer/${token}`;
     } else if (route === 'admin') {
-      window.location.hash = '#/admin';
+      targetPath = `/${ADMIN_SECRET_ROUTE}`;
     } else if (route === 'print') {
-      window.location.hash = '#/imprimer';
+      targetPath = '/imprimer';
     }
-    parseHash();
+
+    if (window.location.pathname !== targetPath || window.location.hash) {
+      window.history.pushState({}, '', targetPath);
+    }
+    parseRoute();
   }
 
   onMount(() => {
-    parseHash();
-    window.addEventListener('hashchange', parseHash);
-    return () => window.removeEventListener('hashchange', parseHash);
+    parseRoute();
+    window.addEventListener('popstate', parseRoute);
+    window.addEventListener('hashchange', parseRoute);
+    return () => {
+      window.removeEventListener('popstate', parseRoute);
+      window.removeEventListener('hashchange', parseRoute);
+    };
   });
 </script>
 
@@ -49,7 +66,13 @@
   {#if currentRoute !== 'print'}
     <header class="main-navbar no-print">
       <div class="nav-container">
-        <div class="brand" on:click={() => navigateTo('home')}>
+        <div 
+          class="brand" 
+          on:click={() => navigateTo('home')}
+          on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && navigateTo('home')}
+          role="button"
+          tabindex="0"
+        >
           <span class="brand-icon">🐾</span>
           <div class="brand-text">
             <span class="brand-title">Livre d'Or</span>
