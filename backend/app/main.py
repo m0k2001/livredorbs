@@ -6,13 +6,23 @@ from pathlib import Path
 from typing import Optional, List
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, Header, Query
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, Header, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from pydantic import BaseModel
 
-from .config import UPLOAD_DIR, SECRET_SUBMIT_TOKEN, CLIENT_SECRET_SLUG, ADMIN_PASSWORD, TEAM_PASSWORD, HONORED_PERSON
+from .config import (
+    UPLOAD_DIR,
+    SECRET_SUBMIT_TOKEN,
+    CLIENT_SECRET_SLUG,
+    ADMIN_PASSWORD,
+    TEAM_PASSWORD,
+    HONORED_PERSON,
+    ENABLE_DOCS,
+    ALLOWED_ORIGINS
+)
 from .database import (
     init_db,
     create_message,
@@ -32,18 +42,39 @@ async def lifespan(app: FastAPI):
     init_db()
     yield
 
-app = FastAPI(title="Livre d'Or Dr Béatrice", lifespan=lifespan)
+# Configure FastAPI with Swagger docs toggle (disabled in production)
+app = FastAPI(
+    title="Livre d'Or Dr Béatrice",
+    lifespan=lifespan,
+    docs_url="/docs" if ENABLE_DOCS else None,
+    redoc_url="/redoc" if ENABLE_DOCS else None,
+    openapi_url="/openapi.json" if ENABLE_DOCS else None
+)
 
-# Allow all CORS for ease of local dev and production deployment
+# 1. Trust Reverse Proxy Headers (X-Forwarded-Proto, X-Forwarded-For) to prevent HTTP downgrade
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+
+# 2. CORS configuration with explicit allowed origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Serve uploaded media files directly in full resolution
+# 3. Global Security Headers Middleware (HSTS, nosniff, frame-options, referrer-policy)
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    return response
+
+# Serve uploaded media files directly in full resolution (without directory listing)
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 # Security helpers

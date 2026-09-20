@@ -29,3 +29,14 @@ TEAM_PASSWORD = os.getenv("TEAM_PASSWORD", "vetalians2026")
 
 # Doctor name for branding
 HONORED_PERSON = os.getenv("HONORED_PERSON", "Dr Béatrice Sarda")
+
+# API Documentation toggle (Swagger / Redoc) - disabled by default in production
+ENABLE_DOCS = os.getenv("ENABLE_DOCS", "false").strip().lower() in ("true", "1", "yes")
+
+# Allowed CORS origins
+DEFAULT_ORIGINS = "https://retraitebs.vetalians.fr,http://localhost:5173,http://localhost:8000,http://127.0.0.1:5173,http://127.0.0.1:8000"
+raw_origins = os.getenv("ALLOWED_ORIGINS", DEFAULT_ORIGINS)
+ALLOWED_ORIGINS = [orig.strip() for orig in raw_origins.split(",") if orig.strip()]
+if "*" in ALLOWED_ORIGINS:
+    ALLOWED_ORIGINS = ["*"]
+
