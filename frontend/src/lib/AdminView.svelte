@@ -685,7 +685,7 @@
     role="presentation"
   >
     <div class="modal-card" role="dialog" aria-modal="true" tabindex="-1">
-      <h3>Modifier le message #{editingMessage.id}</h3>
+      <h3>Modifier le souvenir de {editingMessage.author_name}</h3>
 
       <div class="form-group">
         <label for="edit-author">Nom de l'auteur / famille</label>

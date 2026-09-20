@@ -56,7 +56,18 @@ def verify_admin_token(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=403, detail="Mot de passe administrateur incorrect")
     return True
 
-# Pydantic models for admin requests
+# Pydantic models for responses and admin requests
+class PublicMessageResponse(BaseModel):
+    id: str
+    author_name: str
+    pet_name: str
+    pet_species: str
+    years_known: Optional[str] = ""
+    message: str
+    media_path: Optional[str] = None
+    media_type: Optional[str] = None
+    created_at: str
+
 class AdminLoginRequest(BaseModel):
     password: str
 
@@ -100,9 +111,9 @@ def get_admin_config(authorized: bool = Depends(verify_admin_token)):
         "honored_person": HONORED_PERSON
     }
 
-@app.get("/api/messages")
+@app.get("/api/messages", response_model=List[PublicMessageResponse])
 def list_approved_messages(species: Optional[str] = None, for_print: bool = False):
-    """Returns approved messages (optionally filtered for print book if for_print=True)."""
+    """Returns approved messages strictly filtered for public consumption."""
     return get_approved_messages(species_filter=species, for_print=for_print)
 
 @app.post("/api/messages/submit")
@@ -295,7 +306,7 @@ def admin_list_messages(
     }
 
 @app.patch("/api/admin/messages/{message_id}/status")
-def admin_update_status(message_id: int, body: StatusUpdateRequest, authorized: bool = Depends(verify_admin_token)):
+def admin_update_status(message_id: str, body: StatusUpdateRequest, authorized: bool = Depends(verify_admin_token)):
     valid_statuses = {"pending", "approved", "rejected"}
     if body.status not in valid_statuses:
         raise HTTPException(status_code=400, detail="Statut invalide")
@@ -306,7 +317,7 @@ def admin_update_status(message_id: int, body: StatusUpdateRequest, authorized: 
 
 @app.patch("/api/admin/messages/{message_id}/print")
 def admin_update_print_selection(
-    message_id: int, 
+    message_id: str, 
     body: PrintSelectionRequest, 
     authorized: bool = Depends(verify_admin_token)
 ):
@@ -324,7 +335,7 @@ def admin_bulk_print_selection(
     return {"success": True, "count": count, "include_in_print": body.include_in_print}
 
 @app.put("/api/admin/messages/{message_id}")
-def admin_edit_message(message_id: int, body: MessageEditRequest, authorized: bool = Depends(verify_admin_token)):
+def admin_edit_message(message_id: str, body: MessageEditRequest, authorized: bool = Depends(verify_admin_token)):
     updated = update_message_content(
         message_id=message_id,
         author_name=body.author_name,
@@ -338,7 +349,7 @@ def admin_edit_message(message_id: int, body: MessageEditRequest, authorized: bo
     return {"success": True, "id": message_id}
 
 @app.delete("/api/admin/messages/{message_id}")
-def admin_delete_message(message_id: int, authorized: bool = Depends(verify_admin_token)):
+def admin_delete_message(message_id: str, authorized: bool = Depends(verify_admin_token)):
     media_path = delete_message(message_id)
     # Cleanup physical media file if present
     if media_path and media_path.startswith("/uploads/"):
